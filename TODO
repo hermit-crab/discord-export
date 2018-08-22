@@ -1,5 +1,4 @@
-this stuff could be wrong: model.created_at.timestamp()
 continue mode is kinda clunky
 implement online monitoring
-add userpic and emotes image download
+add userpic/emotes/attachments? downloading option
 implement logrecords to human readable chatlog converter
