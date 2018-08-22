@@ -48,16 +48,16 @@ def continuation_get_conf(file):
 async def interactive_get_conf(client):
     conf = {}
 
-    guilds = ['[Direct Messages]'] + [s.name for s in client.guilds[::-1]]
+    guild_names = ['[Direct Messages]'] + [s.name for s in client.guilds]
     print()
-    for i, name in enumerate(guilds, 1):
+    for i, name in enumerate(guild_names, 1):
         print(f'{i}. {name}')
     i = int(await ainput('Pick a server (number): '))
-    print(f'\n==> {guilds[i-1]}\n')
+    print(f'\n==> {guild_names[i-1]}\n')
 
     if i == 1:
 
-        channels = client.private_channels[::-1]
+        channels = client.private_channels
         for i, ch in enumerate(channels, 1):
             name = f'{i}. '
             if isinstance(ch, discord.DMChannel):
@@ -74,7 +74,7 @@ async def interactive_get_conf(client):
 
     else:
 
-        guild = list(client.guilds)[i-2]
+        guild = client.guilds[i-2]
         channels, skipped = filter_channels(guild.channels)
         for reason, ch in skipped:
             if 'non-text' not in reason:
@@ -222,7 +222,7 @@ async def run(client, conf, creds):
         f.write('\n')
         if guild:
             logger.info(f'serializing server info')
-            if guild.large:
+            if guild.chunked:
                 await client.request_offline_members(guild)
             f.write(format_record('server_info', serialize_server(guild)))
             f.write('\n')
