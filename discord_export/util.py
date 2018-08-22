@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 
 import discord
 from discord.http import HTTPClient, Route
@@ -78,7 +79,32 @@ def load_messages(fnames):
                 else:
                     objects.setdefault(record_type, {})[data['id']] = data
 
-    # for i in objects['messages'].values():
-    #     i['channel'] = objects['channel'][i['channel']]
-    #     i[''] = objects['channel'][i['channel']]
+    tags = {
+        '!': 'user',
+        '@': 'user',
+        '#': 'channel',
+        '&': 'role'
+    }
 
+    def subber(m):
+        try:
+            thing = objects[tags[m.group(1)]][int(m.group(2))]
+            return f'<{m.group(1)}{thing["name"]}>'
+        except Exception:
+            return m.group()
+
+    for m in objects['message'].values():
+        m['channel'] = objects['channel'][m['channel']]
+        ch = m['channel']
+        sv = ch['server']
+        if isinstance(sv, int):
+            ch['server'] = objects['server'][ch['server']]
+        m['author'] = objects['user'][m['author']]
+
+        m['clean_content'] = re.sub(r'<(.)([^>]+)>', subber, m['content'])
+        m['timestamp'] = datetime.datetime.fromtimestamp(int(m['timestamp']))
+        edited = m['edited_timestamp']
+        if edited:
+            m['edited_timestamp'] = datetime.datetime.fromtimestamp(edited)
+
+    return sorted(objects['message'].values(), key=lambda m: m['timestamp'])

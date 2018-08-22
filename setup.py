@@ -12,6 +12,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'logzero',
+        'colorama',
         'aioconsole',
         'discord.py>=1.0.0a',
     ],

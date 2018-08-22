@@ -10,12 +10,14 @@ from datetime import datetime, timedelta
 from getpass import getpass
 
 import discord
+import colorama
+from colorama import Style
 from aioconsole import ainput
 from logzero import logger, LogFormatter
 
 from .crawl import crawl
 from .serialize import *
-from .util import channel_name, filter_channels, patch_http
+from .util import channel_name, filter_channels, patch_http, load_messages
 from . import __version__
 
 
@@ -168,6 +170,18 @@ def process_conf(client, conf):
     return guild, channels, timestamps, file
 
 
+def dump_history(conf):
+    colorama.init()
+    for m in load_messages([conf.file]):
+        room = m['channel']['name']
+        date = str(m['timestamp'])
+        if m['edited_timestamp']:
+            date += '*'
+        author = m['author']['name']
+        print(f'{Style.DIM} -- #{room} {author} {date}{Style.RESET_ALL}')
+        print(m['clean_content'])
+
+
 async def run(client, conf, creds):
     logger.info('initializing and logging in')
     if len(creds) == 1:
@@ -257,6 +271,10 @@ def parse_args():
     sub.add_argument('file')
     sub.set_defaults(mode='continue')
 
+    sub = subparsers.add_parser('dump-history')
+    sub.add_argument('file')
+    sub.set_defaults(mode='dump_history')
+
     if not sys.argv[1:]:
         sys.argv.append('interactive')
 
@@ -273,6 +291,9 @@ def main():
     logger.info(f'argv: {sys.argv[1:]}')
 
     conf = parse_args()
+    if conf.mode == 'dump_history':
+        dump_history(conf)
+        return
 
     token = os.environ.get('TOKEN')
     email = os.environ.get('EMAIL')
