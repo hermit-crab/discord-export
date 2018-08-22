@@ -1,4 +1,5 @@
 import datetime
+import json
 
 import discord
 from discord.http import HTTPClient, Route
@@ -33,6 +34,10 @@ def utc_ts(utc_naive_dt):
     return utc_naive_dt.replace(tzinfo=datetime.timezone.utc).timestamp()
 
 
+def emoji_id(emoji):
+    return emoji if isinstance(emoji, str) else emoji.id
+
+
 def patch_http():
 
     async def email_login(self, email, password):
@@ -52,3 +57,28 @@ def patch_http():
         return data
 
     HTTPClient.email_login = email_login
+
+
+def load_messages(fnames):
+    objects = {}
+    for fname in fnames:
+        with open(fname) as f:
+            for l in f:
+                record_type, data = l.split(',', 1)
+                data = json.loads(data)
+                if record_type in ['run_info', 'run_finished']:
+                    continue
+                elif record_type == 'reaction':
+                    reactions = objects.setdefault('reactions', {})
+                    reactions[(data['message'], data['emoji'])] = data
+                    objects['message'][data['message']].setdefault('reactions', []).append(data)
+                elif record_type == 'reaction_user':
+                    reaction = objects['reactions'][(data['message'], data['emoji'])]
+                    reaction.setdefault('users', []).append(data['user'])
+                else:
+                    objects.setdefault(record_type, {})[data['id']] = data
+
+    # for i in objects['messages'].values():
+    #     i['channel'] = objects['channel'][i['channel']]
+    #     i[''] = objects['channel'][i['channel']]
+

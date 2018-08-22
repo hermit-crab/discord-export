@@ -2,3 +2,4 @@ continue mode is kinda clunky
 implement online monitoring
 add userpic/emotes/attachments? downloading option
 implement logrecords to human readable chatlog converter
+add --after key

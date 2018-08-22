@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 
-with open('discord_export/_version.py') as f:
+with open('discord_export/__init__.py') as f:
     exec(f.read())
 
 

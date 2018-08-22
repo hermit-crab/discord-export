@@ -5,7 +5,7 @@ from urllib.parse import quote
 import discord
 from logzero import logger
 
-from .util import channel_name
+from .util import channel_name, emoji_id
 from .serialize import *
 
 
@@ -42,17 +42,55 @@ async def crawl(client, channels, timestamps):
     logger.info(f'starting crawl')
 
     users_seen = set()
+    emojis_seen = set()
     guild = None
     if not isinstance(channels[0], discord.abc.PrivateChannel):
         guild = channels[0].guild
 
     def ensure_user(user):
-        if user.id not in users_seen:
-            member = None
-            if guild:
-                member = guild.get_member(user.id)
-            yield ['user', serialize_user(member or user)]
+        if user.id in users_seen:
+            return
+        member = guild.get_member(user.id) if guild else None
+        yield ['user', serialize_user(member or user)]
         users_seen.add(user.id)
+
+    def ensure_emoji(emoji):
+        if isinstance(emoji, str) or emoji.id in emojis_seen:
+            return
+        yield ['custom_emoji', serialize_emoji(emoji)]
+        emojis_seen.add(emoji.id)
+
+    if guild:
+        if guild.large and guild.chunked:
+            logger.info(f'requesting server offline members')
+            await client.request_offline_members(guild)
+
+        logger.info(f'serializing server')
+        yield ['server', serialize_server(guild)]
+
+
+        logger.info(f'serializing members')
+        for m in guild.members:
+            for record in ensure_user(m):
+                yield record
+
+        logger.info(f'serializing roles')
+        for r in guild.roles:
+            yield ['role', serialize_role(r)]
+
+        logger.info(f'serializing emojis')
+        for r in guild.emojis:
+            for record in ensure_emoji(r):
+                yield record
+
+        logger.info(f'serializing channels')
+        for ch in guild.channels:
+            yield ['channel', serialize_channel(ch)]
+
+    else:
+        logger.info(f'serializing channels')
+        for ch in channels:
+            yield ['channel', serialize_channel(ch)]
 
     ch_n = 1
     now = datetime.utcnow()
@@ -86,24 +124,25 @@ async def crawl(client, channels, timestamps):
                     continue
                 messages_count += 1
 
-                m_obj = serialize_message(m)
+                yield ['message', serialize_message(m)]
 
-                m_obj['reactions'] = []
                 for reaction in m.reactions:
-                    r_obj = serialize_reaction(reaction)
-                    r_obj['users'] = []
+                    yield ['reaction', serialize_reaction(reaction)]
+
+                    for record in ensure_emoji(reaction.emoji):
+                        yield record
 
                     async for user in get_reaction_users(reaction):
                         for record in ensure_user(user):
                             yield record
 
-                        r_obj['users'].append(user.id)
+                        obj = {'user': user.id, 'message': m.id, 'emoji': emoji_id(reaction.emoji)}
 
-                    m_obj['reactions'].append(r_obj)
-
-                yield ['message', m_obj]
+                        yield ['reaction_user', obj]
 
             after = messages[-1]
+
+            discord.Guild
 
             covered = now - after.created_at
             percent = (1-covered/timespan)*100

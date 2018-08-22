@@ -16,7 +16,7 @@ from logzero import logger, LogFormatter
 from .crawl import crawl
 from .serialize import *
 from .util import channel_name, filter_channels, patch_http
-from ._version import __version__
+from . import __version__
 
 
 async def connect(client):
@@ -220,17 +220,6 @@ async def run(client, conf, creds):
 
         f.write(format_record('run_info', run_info))
         f.write('\n')
-        if guild:
-            logger.info(f'serializing server info')
-            if guild.large and guild.chunked:
-                await client.request_offline_members(guild)
-            f.write(format_record('server_info', serialize_server(guild)))
-            f.write('\n')
-        else:
-            logger.info(f'serializing channels info')
-            serialized = [serialize_channel(ch) for ch in channels]
-            f.write(format_record('channels_info', serialized))
-            f.write('\n')
 
         async for record in crawl(client, channels, timestamps):
             f.write(format_record(*record))
