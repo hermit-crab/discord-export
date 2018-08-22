@@ -222,7 +222,7 @@ async def run(client, conf, creds):
         f.write('\n')
         if guild:
             logger.info(f'serializing server info')
-            if guild.chunked:
+            if guild.large and guild.chunked:
                 await client.request_offline_members(guild)
             f.write(format_record('server_info', serialize_server(guild)))
             f.write('\n')
