@@ -144,7 +144,7 @@ def serialize_server(model):
               'icon_url', 'splash_url', 'member_count']:
         obj[k] = getattr(model, k)
 
-    obj['roles'] = [e.id for e in model.role_hierarchy]
+    obj['roles'] = [e.id for e in model.roles]
     obj['region'] = str(model.region)
     obj['members'] = [e.id for e in model.members]
     obj['channels'] = [e.id for e in model.channels]
