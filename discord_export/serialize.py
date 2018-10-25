@@ -141,7 +141,7 @@ def serialize_server(model):
               'icon_url', 'splash_url', 'member_count']:
         obj[k] = getattr(model, k)
 
-    obj['roles'] = [serialize_role(e) for e in model.role_hierarchy]
+    obj['roles'] = [serialize_role(e) for e in model.roles]
     obj['region'] = str(model.region)
     obj['created_at'] = utc_ts(model.created_at)
     obj['afk_channel'] = model.afk_channel.id if model.afk_channel else None
