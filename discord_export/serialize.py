@@ -1,6 +1,6 @@
 import discord
 
-from .util import utc_ts
+from .util import utc_ts, emoji_id
 
 
 channel_types = {
@@ -25,6 +25,7 @@ def serialize_user(model):
         obj['roles'] = [e.id for e in model.roles]
         obj['joined_at'] = utc_ts(model.joined_at)
         obj['top_role'] = model.top_role.id
+        obj['server'] = model.guild.id
         obj['nick'] = model.nick
         obj['color'] = model.color.value
     return obj
@@ -44,6 +45,7 @@ def serialize_channel(model):
 
     obj['overwrites'] = [(a.id, [p.value for p in b.pair()]) for a, b in model.overwrites]
     obj['created_at'] = utc_ts(model.created_at)
+    obj['server'] = model.guild.id
     cls = type(model)
     obj['type'] = channel_types.get(cls, cls.__name__)
     return obj
@@ -61,10 +63,10 @@ def _serialize_private_channel(model):
 
     for k in ['recipient', 'owner', 'me']:
         if hasattr(model, k):
-            obj[k] = serialize_user(getattr(model, k))
+            obj[k] = model.id
 
     if hasattr(model, 'recipients'):
-        obj[k] = [serialize_user(e) for e in model.recipients]
+        obj[k] = [e.id for e in model.recipients]
 
     obj['created_at'] = utc_ts(model.created_at)
     cls = type(model)
@@ -118,6 +120,7 @@ def serialize_role(model):
               'managed', 'position', 'hoist']:
         obj[k] = getattr(model, k)
 
+    obj['server'] = model.guild.id
     obj['color'] = model.color.value
     obj['created_at'] = utc_ts(model.created_at)
     obj['permissions'] = model.permissions.value
@@ -126,11 +129,11 @@ def serialize_role(model):
 
 def serialize_reaction(model):
     obj = {}
-    for k in ['count', 'emoji', 'me']:
+    for k in ['count', 'me']:
         obj[k] = getattr(model, k)
 
-    if not isinstance(model.emoji, str):
-        obj['emoji'] = serialize_emoji(model.emoji)
+    obj['message'] = model.message.id
+    obj['emoji'] = emoji_id(model.emoji)
     return obj
 
 
@@ -143,10 +146,11 @@ def serialize_server(model):
 
     obj['roles'] = [serialize_role(e) for e in model.roles]
     obj['region'] = str(model.region)
+    obj['members'] = [e.id for e in model.members]
+    obj['channels'] = [e.id for e in model.channels]
+    obj['emojis'] = [e.id for e in model.emojis]
     obj['created_at'] = utc_ts(model.created_at)
     obj['afk_channel'] = model.afk_channel.id if model.afk_channel else None
-    obj['members'] = [serialize_user(e) for e in model.members]
-    obj['channels'] = [serialize_channel(e) for e in model.channels]
     obj['owner'] = model.owner.id
     obj['verification_level'] = str(model.verification_level)
     return obj

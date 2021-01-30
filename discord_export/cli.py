@@ -8,15 +8,19 @@ import json
 import time
 from datetime import datetime, timedelta
 from getpass import getpass
+import dateparser
+from packaging import version
 
 import discord
+import colorama
+from colorama import Style
 from aioconsole import ainput
 from logzero import logger, LogFormatter
 
 from .crawl import crawl
 from .serialize import *
-from .util import channel_name, filter_channels, patch_http
-from ._version import __version__
+from .util import channel_name, filter_channels, patch_http, load_messages
+from . import __version__
 
 
 async def connect(client):
@@ -26,6 +30,13 @@ async def connect(client):
         await client.wait_until_ready()
 
 
+async def ainput_nonempty(*args, **kw):
+    while True:
+        ret = (await ainput(*args, **kw)).strip()
+        if ret:
+            return ret
+
+
 def continuation_get_conf(file):
     conf = {}
     timestamps = {}
@@ -33,7 +44,12 @@ def continuation_get_conf(file):
         for l in f:
             type_, data = l.split(',', 1)
             if not conf and type_ == 'run_info':
-                conf = json.loads(data)['conf']
+                data = json.loads(data)
+                ver = data.get('version', '0.0.0')
+                req = '0.1.0'
+                if version.parse(ver) < version.parse(req):
+                    raise Exception(f'incompatible version {ver} < {req}')
+                conf = data['conf']
             elif type_ == 'message':
                 data = json.loads(data)
                 ch = data['channel']
@@ -48,11 +64,12 @@ def continuation_get_conf(file):
 async def interactive_get_conf(client):
     conf = {}
 
+    guild = None
     guild_names = ['[Direct Messages]'] + [s.name for s in client.guilds]
     print()
     for i, name in enumerate(guild_names, 1):
         print(f'{i}. {name}')
-    i = int(await ainput('Pick a server (number): '))
+    i = int(await ainput_nonempty('Pick a server (number): '))
     print(f'\n==> {guild_names[i-1]}\n')
 
     if i == 1:
@@ -83,10 +100,7 @@ async def interactive_get_conf(client):
         channels.sort(key=lambda c: c.position)
         for i, ch in enumerate(channels, 1):
             cat = getattr(ch, 'category', None)
-            if cat:
-                cat = f'({cat.name}) '
-            else:
-                cat = ''
+            cat = f'({cat.name}) ' if cat else ''
             print(f'{i}. {cat}{channel_name(ch)}')
         answer = (await ainput('Select channels (numbers, blank for all): ')).strip().split()
         conf['mode'] = 'server'
@@ -96,22 +110,40 @@ async def interactive_get_conf(client):
             conf['mode'] = 'channels'
             conf['id'] = [ch.id for ch in channels]
 
-    print(f'\n==> channels:')
+    date = None
+    while True:
+        answer = (await ainput('Start date (or leave blank): '))
+        if not answer:
+            date = None
+            break
+        date = dateparser.parse(answer)
+        if date:
+            break
+        print('==x can\'t understand the date specified')
+
+    date_s = date or 'from the beginning'
+    print()
+    print(f'==> start date: {date_s}')
+    print(f'==> server: {guild or "dm"}')
+    print(f'==> channels:')
     for ch in channels:
-        print(f'{channel_name(ch)}')
+        cat = getattr(ch, 'category', None)
+        cat = f'({cat.name}) ' if cat else ''
+        print(f'{cat}{channel_name(ch)}')
     print()
 
-    answer = await ainput('Continue? [Y/n]: ')
+    conf['after'] = date.timestamp() if date else None
+
+    answer = await ainput_nonempty('Confirm? [y/n]: ')
     if answer.lower() == 'n':
-        return
+        return await interactive_get_conf(client)
 
     return argparse.Namespace(**conf)
 
 
-def process_conf(client, conf):
+def validate_conf(client, conf):
 
     guild = None
-    timestamps = {}
     file = container_id = container_name = None
     date_s = '-'.join(datetime.now().isoformat().split(':')[:2])
 
@@ -123,7 +155,7 @@ def process_conf(client, conf):
     elif conf.mode == 'server':
 
         guild = client.get_guild(conf.id)
-        assert guild, 'server does not exist'
+        assert guild, 'server was not found'
         channels, skipped = filter_channels(guild.channels)
         for reason, ch in skipped:
             logger.info(f'filtering out {ch.id} ({channel_name(ch)}), {reason}')
@@ -136,7 +168,7 @@ def process_conf(client, conf):
         for id in conf.id:
             channel = client.get_channel(id)
             if not channel:
-                logger.error(f'channel {id} does not exist')
+                logger.error(f'channel {id} was not found')
             else:
                 channels.append(channel)
 
@@ -165,7 +197,19 @@ def process_conf(client, conf):
     container_name = re.sub(r'[^A-Za-z\d_()-]', '_', container_name)
     file = f'{container_id}.{date_s}.{container_name}.records'
 
-    return guild, channels, timestamps, file
+    return guild, channels, file
+
+
+def dump_history(conf):
+    colorama.init()
+    for m in load_messages([conf.file]):
+        room = m['channel']['name']
+        date = str(m['timestamp'])
+        if m['edited_timestamp']:
+            date += '*'
+        author = m['author']['name']
+        print(f'{Style.DIM} -- #{room} {author} {date}{Style.RESET_ALL}')
+        print(m['clean_content'])
 
 
 async def run(client, conf, creds):
@@ -177,6 +221,8 @@ async def run(client, conf, creds):
         client._connection.is_bot = False
 
     file = None
+    timestamps = {}
+
     if conf.mode == 'continue':
         logger.info('reading previous run info')
         file = conf.file
@@ -190,16 +236,22 @@ async def run(client, conf, creds):
             await client.close()
             return
 
-    guild, channels, timestamps_, file_ = process_conf(client, conf)
+    guild, channels, file_ = validate_conf(client, conf)
+
     if not file:
         file = file_
-        timestamps = timestamps_
+
+    if conf.after:
+        timestamps = {ch.id: conf.after for ch in channels}
 
     logger.info(f'file: {file}')
     guild_ = f'{guild.id} ({guild.name})' if guild else 'dm'
     logger.info(f'server: {guild_}')
     for ch in channels:
-        logger.info(f'channel: {ch.id} ({channel_name(ch)})')
+        date_s = 'the beginning'
+        if ch.id in timestamps:
+            date_s = datetime.fromtimestamp(timestamps.get(ch.id))
+        logger.info(f'channel: {ch.id} ({channel_name(ch)}) from {date_s}')
 
     with open(file, 'a+') as f:
         run_info = {
@@ -220,17 +272,6 @@ async def run(client, conf, creds):
 
         f.write(format_record('run_info', run_info))
         f.write('\n')
-        if guild:
-            logger.info(f'serializing server info')
-            if guild.large and guild.chunked:
-                await client.request_offline_members(guild)
-            f.write(format_record('server_info', serialize_server(guild)))
-            f.write('\n')
-        else:
-            logger.info(f'serializing channels info')
-            serialized = [serialize_channel(ch) for ch in channels]
-            f.write(format_record('channels_info', serialized))
-            f.write('\n')
 
         async for record in crawl(client, channels, timestamps):
             f.write(format_record(*record))
@@ -253,20 +294,36 @@ def parse_args():
     sub = subparsers.add_parser('interactive')
     sub.set_defaults(mode='interactive')
 
+    def date(date):
+        date = dateparser.parse(date)
+        if not date:
+            raise ValueError
+        return date.timestamp()
+
+    def add_common_for_crawl(parser):
+        sub.add_argument('--after', type=date, help='date after which to start extracting')
+
     sub = subparsers.add_parser('dm')
     sub.set_defaults(mode='dm')
+    add_common_for_crawl(sub)
 
     sub = subparsers.add_parser('channels')
-    sub.add_argument('id', type=int, nargs='+', help='must come from the same source')
     sub.set_defaults(mode='channels')
+    sub.add_argument('id', type=int, nargs='+', help='must come from the same source')
+    add_common_for_crawl(sub)
 
     sub = subparsers.add_parser('server')
-    sub.add_argument('id', type=int)
     sub.set_defaults(mode='server')
+    sub.add_argument('id', type=int)
+    add_common_for_crawl(sub)
 
     sub = subparsers.add_parser('continue')
-    sub.add_argument('file')
     sub.set_defaults(mode='continue')
+    sub.add_argument('file')
+
+    sub = subparsers.add_parser('dump-history')
+    sub.set_defaults(mode='dump_history')
+    sub.add_argument('file')
 
     if not sys.argv[1:]:
         sys.argv.append('interactive')
@@ -278,13 +335,7 @@ def parse_args():
     return conf
 
 
-def main():
-    formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s]%(end_color)s %(message)s')
-    logger.handlers[0].setFormatter(formatter)
-    logger.info(f'argv: {sys.argv[1:]}')
-
-    conf = parse_args()
-
+def get_creds():
     token = os.environ.get('TOKEN')
     email = os.environ.get('EMAIL')
     pw = os.environ.get('PASS')
@@ -295,12 +346,25 @@ def main():
         email = input('Email: ')
 
     if token:
-        creds = (token, )
+        return (token, )
     elif email:
         if not pw:
             pw = getpass()
-        creds = (email, pw)
-    else:
+        return (email, pw)
+
+
+def main():
+    formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s]%(end_color)s %(message)s')
+    logger.handlers[0].setFormatter(formatter)
+    logger.info(f'argv: {sys.argv[1:]}')
+
+    conf = parse_args()
+    if conf.mode == 'dump_history':
+        dump_history(conf)
+        return
+
+    creds = get_creds()
+    if not creds:
         logger.error('no credentials are set')
         return 2
 

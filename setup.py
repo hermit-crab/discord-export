@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 
-with open('discord_export/_version.py') as f:
+with open('discord_export/__init__.py') as f:
     exec(f.read())
 
 
@@ -12,6 +12,9 @@ setup(
     packages=find_packages(),
     install_requires=[
         'logzero',
+        'colorama',
+        'packaging',
+        'dateparser',
         'aioconsole',
         'discord.py>=1.0.0a',
     ],
