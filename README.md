@@ -1,5 +1,7 @@
-## discord-export
+## discord-export **[UNMAINTAINED]**
 Discord channel archiver
+
+**[UNMAINTAINED]** - good active alternative: https://github.com/Tyrrrz/DiscordChatExporter
 
 #### Requirements
 * Python3.5
