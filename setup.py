@@ -14,10 +14,11 @@ setup(
     install_requires=[
         'dateparser',
         'aioconsole',
+        'aiohttp',
     ],
     entry_points={
         'console_scripts': [
-            'discord-export = discord_export.__main__:main',
+            'discord-export = discord_export:cli',
         ]
     },
 )
