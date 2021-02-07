@@ -1,25 +1,19 @@
 #!/bin/python
+from os.path import join, dirname
 from setuptools import setup, find_packages
 
 
-with open('discord_export/__init__.py') as f:
-    exec(f.read())
+with open(join(dirname(__file__), 'discord_export/VERSION')) as f:
+    version = f.read().strip()
 
 
 setup(
     name='discord-export',
-    version=__version__,
+    version=version,
     packages=find_packages(),
     install_requires=[
-        'logzero',
-        'colorama',
-        'packaging',
         'dateparser',
         'aioconsole',
-        'discord.py>=1.0.0a',
-    ],
-    dependency_links=[
-        "git+https://github.com/Rapptz/discord.py.git@rewrite#egg=discord.py-1.0.0a"
     ],
     entry_points={
         'console_scripts': [
