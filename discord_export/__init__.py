@@ -10,9 +10,8 @@ import aiohttp
 import dateparser
 import tqdm
 
-# TODO: semi-rendered message content
-# TODO: pinned messages
 # TODO: dms / server
+# TODO: dont fail full server pull if you cant read channel
 # TODO: --after support snowflake
 # TODO: render command
 # WONTDO: browse servers / channels
@@ -64,6 +63,24 @@ def safe_str(val):
     return ''.join(c for c in val if c.isalnum() or c in {'_', '-'})
 
 
+def clean_content(message, guild):
+    text = message.get('content')
+    if not isinstance(text, str):
+        return ''
+
+    for member in message.get('mentions', []):
+        text = re.sub('<@%s>' % member['id'], '@' + member['username'], text)
+        text = re.sub('<@!%s>' % member['id'],'@' + member['username'], text)
+
+    for channel in guild.get('__channels', []):
+        text = re.sub('<#%s>' % channel['id'], '#' + channel['name'], text)
+
+    for role in guild.get('roles', []):
+        text = re.sub('<@&%s>' % role['id'], '@' + role['name'], text)
+
+    return text
+
+
 async def export_channel(discord, args):
     d = discord
 
@@ -80,6 +97,7 @@ async def export_channel(discord, args):
     print(f'==> exporting {fname}')
 
     with open(fpath, 'w') as f:
+        channel['__pinned_messages'] = await d.get(f'/channels/{args.channel_id}/pins')
         dump_record(f, 'channel', channel)
         guild['__channels'] = await d.get(f'/guilds/{guild_id}/channels')
         dump_record(f, 'guild', guild)
@@ -112,6 +130,7 @@ async def export_channel(discord, args):
                             f'/channels/{args.channel_id}/messages/{message["id"]}/reactions/{emoji}', limit=100
                         )
                         # XXX: deliberately not paginating reaction users further
+                    message['__clean_content'] = clean_content(message, guild)
                     dump_record(f, 'message', message)
 
                 ts = snowflake_to_ts(after)
