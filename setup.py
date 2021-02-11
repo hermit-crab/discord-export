@@ -13,7 +13,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         'dateparser',
-        'aioconsole',
         'aiohttp',
         'tqdm',
     ],
