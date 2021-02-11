@@ -134,9 +134,9 @@ async def async_cli():
         parser.add_argument('--output-dir', '-o', default='.')
         parser.add_argument('--after', type=date_arg)
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='discord-export')
     subparsers = parser.add_subparsers(dest='command', required=True)
-    subparser = subparsers.add_parser('channel')
+    subparser = subparsers.add_parser('export-channel')
     subparser.add_argument('channel_id')
     add_common_args(subparser)
     args = parser.parse_args()
@@ -148,7 +148,7 @@ async def async_cli():
         print(msg)
         args.after = snowflake_from_ts(args.after.timestamp())
 
-    if args.command in ['channel']:
+    if args.command in ['export-channel']:
         async with DiscordHTTP(args.token) as discord:
             await export_channel(discord, args)
 
