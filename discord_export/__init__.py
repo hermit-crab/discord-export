@@ -41,7 +41,7 @@ class DiscordHTTP:
         async with self._session.get(url, headers={'Authorization': self._token}) as rp:
             data = await rp.json()
             if 'code' in data:
-                raise Exception(f'Error on an API request to {url!r}:\n{pformat(data)}')
+                raise Exception(f'Error HTTP{rp.status} on an API request to {url!r}:\n{pformat(data)}')
             return data
 
 
