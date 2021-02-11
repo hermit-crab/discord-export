@@ -11,6 +11,7 @@ import dateparser
 import tqdm
 
 # TODO: semi-rendered message content
+# TODO: pinned messages
 # TODO: dms / server
 # TODO: --after support snowflake
 # TODO: render command
@@ -94,7 +95,8 @@ async def export_channel(discord, args):
 
         exported = 0
         limit = 100
-        with tqdm.tqdm(total=100, dynamic_ncols=True, bar_format='{desc} [{bar}] {percentage:3.2f}%') as pbar:
+        bar_fmt = '{desc} [{bar}] {percentage:3.2f}% | {elapsed}<{remaining}'
+        with tqdm.tqdm(total=100, dynamic_ncols=True, bar_format=bar_fmt) as pbar:
             while True:
                 messages = await d.get(f'/channels/{args.channel_id}/messages', after=after, limit=limit)
                 messages = list(reversed(messages))
