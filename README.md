@@ -6,7 +6,7 @@ Data is stored in a jsonlines file per channel, each record is of following stru
 ```
 {"type": type_of_the_record, "data": raw_api_response_data}
 ```  
-`raw_api_response_data` is the exact data as seen from official Discord API, any synthetic fields generate by this library are prefixed with a double underscore.
+`raw_api_response_data` is the exact data as seen in official Discord API, any synthetic fields generate by this library are prefixed with a double underscore.
 
 For something simpler and more user friendly see https://github.com/Tyrrrz/DiscordChatExporter. Note that it is not as data comprehensive.
 
