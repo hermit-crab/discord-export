@@ -15,6 +15,7 @@ setup(
         'dateparser',
         'aioconsole',
         'aiohttp',
+        'tqdm',
     ],
     entry_points={
         'console_scripts': [
