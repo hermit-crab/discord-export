@@ -213,7 +213,8 @@ def render(file):
             date = datetime.fromtimestamp(snowflake_to_ts(data['id']))
             date = str(date).split('.')[0]  # remove milliseconds
             author = data.get('author', {}).get('username', {}) or '?UNKNOWN?'
-            print(date, author + ':', data['__clean_content'])
+            content = re.sub(r'<\w?(:\w+:)\d+>', r'\1', data['__clean_content'])
+            print(date, author + ':', content)
 
             tab = '                    '
 
@@ -224,13 +225,7 @@ def render(file):
             reacts_parts = []
             for react in reacts:
                 count, emoji = react.get('count') or 1, react['emoji']
-                if not emoji.get('id'):
-                    reacts_parts.append(emoji['name'])
-                else:
-                    reacts_parts.append('<{}:{}:{}>'.format(
-                        'a' if emoji.get('animated') else '',
-                        emoji['name'], emoji['id'],
-                    ))
+                reacts_parts.append(emoji['name'])
                 if count > 1:
                     reacts_parts[-1] += f'x{count}'
             if reacts: print(tab + '[reacts: {}]'.format(', '.join(reacts_parts)))
