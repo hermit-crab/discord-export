@@ -43,3 +43,5 @@ For something more user friendly see https://github.com/Tyrrrz/DiscordChatExport
 2021-02-12 18:33:49 Mate: cool!
 ...
 ```
+
+**NOTE:** No new development is expected (unless something breaks) as I've implemented everything I personally needed. But feel free to open an issue with feedback. 
