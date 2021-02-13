@@ -8,6 +8,7 @@ import traceback
 from contextlib import closing
 from datetime import datetime
 from pprint import pformat
+from urllib.parse import quote as urlquote
 
 import aiohttp
 import dateparser
@@ -30,6 +31,7 @@ GOOD_CHANNEL_TYPES = {
     5: 'GUILD_NEWS',
 }
 GOOD_CHANNEL_NAMES = {n: v for v, n in GOOD_CHANNEL_TYPES.items()}
+IS_WINDOWS = os.name == 'nt'
 
 
 class DiscordHTTP:
@@ -147,7 +149,7 @@ async def export_channel(discord, channel_id, args):
     fpath = os.path.join(args.output_dir, fname)
     print(f'==> exporting to {fname}')
 
-    with open(fpath, 'w') as f:
+    with open(fpath, 'w', encoding='utf-8') as f:
         dump_record(f, 'me', current_user)
         channel['__pinned_messages'] = await d.get(f'/channels/{channel_id}/pins')
         dump_record(f, 'channel', channel)
@@ -167,7 +169,7 @@ async def export_channel(discord, channel_id, args):
         exported = 0
         limit = 100
         bar_fmt = '{desc} [{bar}] {percentage:3.2f}% | {elapsed}<{remaining}'
-        with tqdm.tqdm(total=100, dynamic_ncols=True, bar_format=bar_fmt) as pbar:
+        with tqdm.tqdm(total=100, dynamic_ncols=True, bar_format=bar_fmt, ascii=IS_WINDOWS) as pbar:
             while True:
                 messages = await d.get(f'/channels/{channel_id}/messages', after=after, limit=limit)
                 messages = list(reversed(messages))
@@ -180,7 +182,7 @@ async def export_channel(discord, channel_id, args):
                         else:
                             emoji = emoji['name']
                         reaction['__users'] = await d.get(
-                            f'/channels/{channel_id}/messages/{message["id"]}/reactions/{emoji}', limit=100
+                            f'/channels/{channel_id}/messages/{message["id"]}/reactions/{urlquote(emoji)}', limit=100
                         )
                         # XXX: deliberately not paginating reaction users further
                     message['__clean_content'] = clean_content(message, guild)
