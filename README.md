@@ -48,3 +48,4 @@ For something more user friendly see https://github.com/Tyrrrz/DiscordChatExport
 - Cleaned up message content can be accessed under "__clean_content" field.
 - Users who reacted to a message are also archived but not more than 100 users per reaction.
 - No new development is planned (unless something breaks) as I've implemented everything I personally needed. But feel free to open an issue with feedback. 
+- Regarding usage of account tokens see token related questions at https://github.com/Tyrrrz/DiscordChatExporter/wiki/Troubleshooting#general.

@@ -14,7 +14,8 @@ import aiohttp
 import dateparser
 import tqdm
 
-# TODO (maybe maybe): simplistic continuation
+# TODO: show where we currently are in time on bar (e.g. 300 msgs saved, at Jan 2019)
+# TODO (maybe maybe): simplistic continuation?
 # WONTDO: browse servers / channels
 # WONTDO: rate limits (doesn't seem needed)
 # WONTDO: CLI interactivity
