@@ -174,9 +174,11 @@ async def export_channel(discord, channel_id, args):
             while True:
                 messages = await d.get(f'/channels/{channel_id}/messages', after=after, limit=limit)
                 messages = list(reversed(messages))
-                after = messages[-1]['id']
                 for message in messages:
-                    for reaction in message.get('reactions', []):
+                    query_reaction_users = message.get('reactions', [])
+                    if args.skip_reaction_users:
+                        query_reaction_users = []
+                    for reaction in query_reaction_users:
                         emoji = reaction['emoji']
                         if reaction['emoji']['id']:
                             emoji = emoji['name'] + ':' + emoji['id']
@@ -188,10 +190,12 @@ async def export_channel(discord, channel_id, args):
                         # XXX: deliberately not paginating reaction users further
                     message['__clean_content'] = clean_content(message, guild)
                     dump_record(f, 'message', message)
+                    after = message['id']
 
                 ts = snowflake_to_ts(after)
                 exported += len(messages)
-                pbar.set_description_str(f'{exported:,} msgs saved')
+                at = datetime.fromtimestamp(ts).strftime('%b %Y')
+                pbar.set_description_str(f'{exported:,} msgs saved, at {at}')
                 if len(messages) == limit:
                     pbar.update((ts - pbar_a) / (pbar_b - pbar_a) * 100 - pbar.n)
                 else:
@@ -251,24 +255,25 @@ def date_or_message_id(val):
 
 async def async_cli():
 
-    def add_common_args(parser):
+    def add_common_export_args(parser):
         parser.add_argument('--token', '-t')
         parser.add_argument('--output-dir', '-o', default='.')
         parser.add_argument('--after', type=date_or_message_id)
+        parser.add_argument('--skip-reaction-users', action='store_true')
 
     parser = argparse.ArgumentParser(prog='discord-export')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     subparser = subparsers.add_parser('export-channel')
     subparser.add_argument('channel_id')
-    add_common_args(subparser)
+    add_common_export_args(subparser)
 
     subparser = subparsers.add_parser('export-server')
     subparser.add_argument('server_id')
-    add_common_args(subparser)
+    add_common_export_args(subparser)
 
     subparser = subparsers.add_parser('export-dms')
-    add_common_args(subparser)
+    add_common_export_args(subparser)
 
     subparser = subparsers.add_parser('render')
     subparser.add_argument('file', type=argparse.FileType())
