@@ -47,7 +47,7 @@ For something more user friendly see https://github.com/Tyrrrz/DiscordChatExport
 - Any synthetic fields placed by this library into `raw_api_response_data` are prefixed with a double underscore.
 - Cleaned up message content can be accessed under "__clean_content" field.
 - Users who reacted to a message are also archived but not more than 100 users per reaction.
-    - This slow things down considerably given it makes a request for every reaction. If you don't need it, use `--skip-reaction-users` flag.
+    - This slows things down considerably given it makes a request for every reaction. If you don't need it, use `--skip-reaction-users` flag.
 - No new development is planned (unless something breaks) as I've implemented everything I personally needed. But feel free to open an issue with feedback. 
 - Regarding usage of account tokens see token related questions at https://github.com/Tyrrrz/DiscordChatExporter/wiki/Troubleshooting#general.
   - There exists a fancier / safer method of auth (OAuth2) in theory but I can't be bothered adding all that.
