@@ -203,9 +203,6 @@ async def export_channel(discord, channel_id, args):
 
 
 def render(file):
-    def username(user):
-        return
-
     for l in file:
         record = json.loads(l)
         type_, data = record['type'], record['data']
